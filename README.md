@@ -13,7 +13,9 @@
 1. Скачай файл `scanner.py`
 2. Запусти в терминале:
    ```bash
+   
    python scanner.py
+   
 3. Введи путь к папке (например, C:\Users\Yoki\Documents)
 
 Пример работы
