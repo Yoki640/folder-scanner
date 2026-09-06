@@ -29,7 +29,7 @@ try:
             print("Введите корректный путь к папке!")
             continue
 
-        print("\n⏳ Подсчёт папок...")
+        print("\nПодсчёт папок...")
 
         # --- 1. Собираем все папки ---
         all_folders = []
@@ -46,29 +46,29 @@ try:
                 percent = (processed / total_folders) * 100
                 bar_len = 30
                 filled = int(bar_len * processed // total_folders)
-                bar = '█' * filled + '░' * (bar_len - filled)
+                bar = '=' * filled + '-' * (bar_len - filled)
                 print(f"\r[{bar}] {percent:.1f}%   ", end='', flush=True)
 
-            print(f"\n📁 Найдено папок: {total_folders}")
+            print(f"\nНайдено папок: {total_folders}")
 
         except PermissionError:
-            print("❌ Ошибка: нет доступа к некоторым папкам.")
+            print("Ошибка: нет доступа к некоторым папкам.")
             exit_program()
         except Exception as e:
-            print(f"❌ Ошибка при подсчёте папок: {e}")
+            print(f"Ошибка при подсчёте папок: {e}")
             exit_program()
 
-        print("🔍 Сканирование файлов...")
+        print("Сканирование файлов...")
 
         # --- 2. Определяем мощность ПК ---
         cpu_cores = os.cpu_count() or 1
         if cpu_cores <= 2:
             use_multithreading = False
-            print(f"💻 Слабый ПК ({cpu_cores} ядра) — однопоточный режим")
+            print(f"Слабый ПК ({cpu_cores} ядра) — однопоточный режим")
         else:
             use_multithreading = True
             max_workers = min(cpu_cores, 4)
-            print(f"⚡ Мощный ПК ({cpu_cores} ядер) — многопоточный режим ({max_workers} потоков)")
+            print(f"Мощный ПК ({cpu_cores} ядер) — многопоточный режим ({max_workers} потоков)")
 
         has_files = False
         total_size = 0
@@ -124,7 +124,7 @@ try:
                         percent = (processed_folders / total_folders) * 100
                         bar_len = 30
                         filled = int(bar_len * processed_folders // total_folders)
-                        bar = '█' * filled + '░' * (bar_len - filled)
+                        bar = '=' * filled + '-' * (bar_len - filled)
                         print(f"\r[{bar}] {percent:.1f}%   ", end='', flush=True)
 
                         local_size, local_files, local_has_files, local_sf = future.result()
@@ -138,7 +138,7 @@ try:
                     percent = (processed_folders / total_folders) * 100
                     bar_len = 30
                     filled = int(bar_len * processed_folders // total_folders)
-                    bar = '█' * filled + '░' * (bar_len - filled)
+                    bar = '=' * filled + '-' * (bar_len - filled)
                     print(f"\r[{bar}] {percent:.1f}%   ", end='', flush=True)
 
                     local_size, local_files, local_has_files, local_sf = process_folder(root)
@@ -167,9 +167,9 @@ try:
             if not has_files:
                 print("В папке нет файлов (только папки или пусто).")
             else:
-                print(f"✅ Общее количество файлов: {total_files}")
-                print(f"✅ Общий размер: {print_text}")
-                print("\n📌 Топ-5 самых больших файлов:")
+                print(f"Общее количество файлов: {total_files}")
+                print(f"Общий размер: {print_text}")
+                print("\nТоп-5 самых больших файлов:")
                 for i, file_info in enumerate(t5, start=1):
                     print(f"  {i}. {file_info}")
 
@@ -186,22 +186,22 @@ try:
                             f.write(f"{i}. {file_info}\n")
                         f.write("\n" + "-" * 40 + "\n\n")
 
-                    print("\n✅ Сохранено в report.txt")
+                    print(f"\nСохранено в report.txt")
                     exit_program()
 
                 except PermissionError:
-                    exit_program("❌ Ошибка: нет прав на запись в report.txt")
+                    exit_program("Ошибка: нет прав на запись в report.txt. Попробуйте переместить файл в одну директорию с report.txt")
                 except Exception as e:
-                    exit_program(f"❌ Ошибка при сохранении: {e}")
+                    exit_program(f"Ошибка при сохранении: {e}")
 
         except KeyboardInterrupt:
-            exit_program("\n❌ Сканирование прервано пользователем.")
+            exit_program("\nСканирование прервано пользователем.")
         except Exception as e:
-            exit_program(f"❌ Произошла ошибка: {e}")
+            exit_program(f"Произошла ошибка: {e}")
 
         break
 
 except KeyboardInterrupt:
-    exit_program("\n❌ Программа остановлена пользователем.")
+    exit_program("\nПрограмма остановлена пользователем.")
 except Exception as e:
-    exit_program(f"❌ Критическая ошибка: {e}")
+    exit_program(f"Критическая ошибка: {e}")
