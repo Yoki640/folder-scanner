@@ -21,7 +21,8 @@
 ```bash
 pip install PyQt6
 python scanner.py
-Скриншот
+```
+## Скриншот
 <img width="1374" height="734" alt="image" src="https://github.com/user-attachments/assets/f435ffb5-90ec-459c-bc4e-b96d34ae06b5" />
 
 
