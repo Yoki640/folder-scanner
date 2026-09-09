@@ -62,6 +62,7 @@ pyinstaller --onefile --windowed --name="FolderScanner" scanner.py
 
 ## 🤝 Контакты и вклад
 Автор: Yoki640
+
 Хочешь помочь с проектом? Создавай Issues или Pull Request — буду рад любой помощи.
 
 ## Лицензия
