@@ -27,5 +27,5 @@ python scanner.py
 # Скриншот
 <img width="1387" height="737" alt="image" src="https://github.com/user-attachments/assets/a579aba3-f2eb-474e-bf42-7e2076210fbb" />
 
-#Автор
+# Автор
 Yoki640
