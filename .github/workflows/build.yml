@@ -44,11 +44,9 @@ jobs:
           path: artifacts
           merge-multiple: false
 
-      - name: List artifacts
-        run: find artifacts -type f
-
       - name: Upload to Release
         uses: ncipollo/release-action@v1
         with:
           artifacts: "artifacts/**/*"
           token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
