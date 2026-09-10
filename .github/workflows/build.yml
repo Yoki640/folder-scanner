@@ -12,14 +12,18 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            artifact: FolderScanner-linux
+          - os: ubuntu-22.04
+            artifact: FolderScanner-linux.AppImage
+            kind: appimage
           - os: windows-latest
             artifact: FolderScanner-windows.exe
-          - os: macos-latest
-            artifact: FolderScanner-macos
+            kind: exe
+          - os: macos-13
+            artifact: FolderScanner-macos.zip
+            kind: dmg
     steps:
       - uses: actions/checkout@v4
 
@@ -28,24 +32,82 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install PyInstaller
-        run: pip install pyinstaller
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyQt6 pyinstaller
+          pip install xxhash || true
 
-      - name: Build with PyInstaller
+      - name: Build (Windows)
+        if: matrix.kind == 'exe'
         run: pyinstaller --onefile --windowed --name="FolderScanner" scanner.py
 
-      - name: Rename binary (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: |
-          mkdir -p out
-          cp dist/FolderScanner out/${{ matrix.artifact }}
-          chmod +x out/${{ matrix.artifact }}
+      - name: Build (macOS .app)
+        if: matrix.kind == 'dmg'
+        run: pyinstaller --windowed --name="FolderScanner" scanner.py
 
-      - name: Rename binary (Windows)
-        if: runner.os == 'Windows'
+      - name: Build (Linux onefile)
+        if: matrix.kind == 'appimage'
+        run: pyinstaller --onefile --windowed --name="FolderScanner" scanner.py
+
+      # ---------- WINDOWS: exe ----------
+      - name: Package (Windows)
+        if: matrix.kind == 'exe'
         run: |
           mkdir out
           copy dist\FolderScanner.exe out\${{ matrix.artifact }}
+
+      # ---------- MACOS: .app в zip ----------
+      - name: Package (macOS)
+        if: matrix.kind == 'dmg'
+        run: |
+          mkdir out
+          cd dist
+          zip -r -y ../out/${{ matrix.artifact }} FolderScanner.app
+          cd ..
+          ls -la out/
+
+      # ---------- LINUX: AppImage ----------
+      - name: Package (Linux AppImage)
+        if: matrix.kind == 'appimage'
+        run: |
+          set -e
+
+          mkdir -p AppDir/usr/bin
+          cp dist/FolderScanner AppDir/usr/bin/FolderScanner
+          chmod +x AppDir/usr/bin/FolderScanner
+
+          cat > AppDir/FolderScanner.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=FolderScanner
+          Exec=FolderScanner
+          Icon=FolderScanner
+          Categories=Utility;FileTools;
+          Terminal=false
+          EOF
+
+          # простая иконка-заглушка (можно заменить своей)
+          printf '\x89PNG\r\n\x1a\n' > AppDir/FolderScanner.png
+          # создаём пустую 1x1 png (AppImage требует иконку)
+          python -c "
+          from struct import pack
+          import zlib
+          def chunk(t, d):
+              c = t + d
+              return pack('>I', len(d)) + c + pack('>I', zlib.crc32(c) & 0xffffffff)
+          sig = b'\x89PNG\r\n\x1a\n'
+          ihdr = chunk(b'IHDR', pack('>IIBBBBB', 1, 1, 8, 6, 0, 0, 0))
+          idat = chunk(b'IDAT', zlib.compress(b'\x00\x00\x00\x00\x00'))
+          iend = chunk(b'IEND', b'')
+          open('AppDir/FolderScanner.png', 'wb').write(sig + ihdr + idat + iend)
+          "
+
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+          mkdir -p out
+          ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir out/${{ matrix.artifact }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -61,17 +123,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          merge-multiple: false
+          merge-multiple: true
 
-      - name: Move files to release dir
-        run: |
-          mkdir -p release
-          find artifacts -type f -exec cp {} release/ \;
-          ls -la release/
+      - name: List artifacts
+        run: ls -la artifacts/
 
       - name: Upload to Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "release/*"
+          artifacts: "artifacts/*"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
