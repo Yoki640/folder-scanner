@@ -51,6 +51,15 @@ pyinstaller --onefile --windowed --name="FolderScanner" scanner.py
 ```
 После сборки готовый файл появится в папке dist/.
 
+# ⚠️ Важно про безопасность:
+Файл может блокироваться антивирусами, потому что он собран через PyInstaller и не имеет платной цифровой подписи. Это стандартное поведение защиты Windows для самописных утилит.
+
+Как проверить, что это безопасно:
+
+1. Исходный код полностью открыт.
+2. Сборка происходит автоматически в GitHub Actions — любой может посмотреть шаги сборки.
+3. Ты можешь загрузить скачанный файл на [VirusTotal.com] (https://www.virustotal.com/gui/file/upload?url=https://github.com/Yoki640/FolderScanner/releases/download/v1.0/FolderScanner-windows.exe) и увидеть, что большинство движков его не детектируют, а те, что помечают, делают это из‑за упаковки (метка Packed, PyInstaller), а не из‑за вредоносного кода.
+
 Скриншоты
 
 <img width="1393" height="742" alt="image" src="https://github.com/user-attachments/assets/5067acf6-1f0d-4bec-acf8-679d71425543" />
