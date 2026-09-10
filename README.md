@@ -58,7 +58,7 @@ pyinstaller --onefile --windowed --name="FolderScanner" scanner.py
 
 1. Исходный код полностью открыт.
 2. Сборка происходит автоматически в GitHub Actions — любой может посмотреть шаги сборки.
-3. Ты можешь загрузить скачанный файл на [VirusTotal.com](https://www.virustotal.com/gui/file/upload?url=https://github.com/Yoki640/FolderScanner/releases/download/v1.0/FolderScanner-windows.exe) и увидеть, что большинство движков его не детектируют, а те, что помечают, делают это из‑за упаковки (метка Packed, PyInstaller), а не из‑за вредоносного кода.
+3. Ты можешь загрузить скачанный файл на [VirusTotal](https://www.virustotal.com/gui/file/upload?url=https://github.com/Yoki640/FolderScanner/releases/download/v1.0/FolderScanner-windows.exe) и увидеть, что большинство движков его не детектируют, а те, что помечают, делают это из‑за упаковки (метка Packed, PyInstaller), а не из‑за вредоносного кода.
 
 Скриншоты
 
