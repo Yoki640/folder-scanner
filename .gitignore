@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Сборка PyInstaller
+build/
+dist/
+*.spec
+
+# Виртуальное окружение
+.venv/
+venv/
+env/
+
+# Настройки редакторов и IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Отчёты программы
+report.txt
+
+# Мусор ОС
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Логи
+*.log
