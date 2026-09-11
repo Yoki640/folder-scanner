@@ -42,18 +42,11 @@ jobs:
 
       - name: Build (Linux)
         if: matrix.platform == 'linux'
-        run: |
-          pyinstaller --onefile --windowed \
-            --hidden-import=xxhash \
-            --hidden-import=send2trash \
-            --name="FolderScanner" scanner.py
+        run: pyinstaller --onefile --windowed --hidden-import=xxhash --hidden-import=send2trash --name="FolderScanner" scanner.py
 
       - name: Build (Windows)
         if: matrix.platform == 'windows'
-        run: |
-          pyinstaller --onefile --windowed \
-            --hidden-import=xxhash \
-            --name="FolderScanner" scanner.py
+        run: pyinstaller --onefile --windowed --hidden-import=xxhash --name="FolderScanner" scanner.py
 
       - name: Package (Linux AppImage)
         if: matrix.platform == 'linux'
@@ -157,11 +150,10 @@ jobs:
           pip install xxhash || true
 
       - name: Build (macOS .app)
+        run: pyinstaller --windowed --hidden-import=xxhash --hidden-import=send2trash --name="FolderScanner" scanner.py
+
+      - name: Package (macOS)
         run: |
-          pyinstaller --windowed \
-            --hidden-import=xxhash \
-            --hidden-import=send2trash \
-            --name="FolderScanner" scanner.py
           cd dist
           zip -r -y FolderScanner-macos.zip FolderScanner.app
           cd ..
