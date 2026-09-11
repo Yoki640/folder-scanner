@@ -192,64 +192,81 @@ def hash_many_sampled(items, cache=None, stop=None):
     return result
 
 
-def safe_delete(path):
-    if not _HAS_TRASH:
-        try:
-            os.remove(path)
-            return True, None
-        except PermissionError:
-            return False, "нет прав"
-        except FileNotFoundError:
-            return False, "файл не найден"
-        except Exception as e:
-            return False, str(e)
+# === УДАЛЕНИЕ ===
+def _win_trash(path):
+    """Перемещение в корзину Windows через нативный SHFileOperationW.
+    Работает в собранном PyInstaller .exe без pywin32."""
+    try:
+        import ctypes
+        from ctypes import wintypes
 
+        class SHFILEOPSTRUCTW(ctypes.Structure):
+            _fields_ = [
+                ("hwnd", wintypes.HWND),
+                ("wFunc", wintypes.UINT),
+                ("pFrom", wintypes.LPCWSTR),
+                ("pTo", wintypes.LPCWSTR),
+                ("fFlags", ctypes.c_ushort),
+                ("fAnyOperationsAborted", wintypes.BOOL),
+                ("hNameMappings", ctypes.c_void_p),
+                ("lpszProgressTitle", wintypes.LPCWSTR),
+            ]
+
+        FO_DELETE = 3
+        FOF_ALLOWUNDO = 0x40
+        FOF_NOCONFIRMATION = 0x10
+        FOF_NOERRORUI = 0x400
+        FOF_SILENT = 0x4
+
+        op = SHFILEOPSTRUCTW()
+        op.wFunc = FO_DELETE
+        op.pFrom = os.path.abspath(path) + "\0\0"
+        op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT
+
+        res = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
+        if res == 0 and not op.fAnyOperationsAborted:
+            return True, None
+        return False, f"SHFileOperation код {res}"
+    except Exception as e:
+        return False, str(e)
+
+
+def _mac_trash(path):
+    """macOS: пробуем send2trash, при ошибке внешнего тома — сообщаем."""
+    if not _HAS_TRASH:
+        return False, "send2trash не установлен"
     try:
         send2trash(path)
         return True, None
-    except PermissionError:
-        return False, "нет прав"
-    except FileNotFoundError:
-        return False, "файл не найден"
     except OSError as e:
-        err_str = str(e)
-        if "0x80270027" in err_str or "OLE" in err_str:
-            try:
-                import ctypes
-                from ctypes import wintypes
-
-                SHFileOperationW = ctypes.windll.shell32.SHFileOperationW
-
-                class SHFILEOPSTRUCTW(ctypes.Structure):
-                    _fields_ = [
-                        ("hwnd", wintypes.HWND),
-                        ("wFunc", wintypes.UINT),
-                        ("pFrom", wintypes.LPCWSTR),
-                        ("pTo", wintypes.LPCWSTR),
-                        ("fFlags", ctypes.c_ushort),
-                        ("fAnyOperationsAborted", wintypes.BOOL),
-                        ("hNameMappings", ctypes.c_void_p),
-                        ("lpszProgressTitle", wintypes.LPCWSTR),
-                    ]
-
-                FO_DELETE = 3
-                FOF_ALLOWUNDO = 0x40
-                FOF_NOCONFIRMATION = 0x10
-
-                op = SHFILEOPSTRUCTW()
-                op.wFunc = FO_DELETE
-                op.pFrom = os.path.abspath(path) + "\0\0"
-                op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION
-                res = SHFileOperationW(ctypes.byref(op))
-
-                if res == 0 and not op.fAnyOperationsAborted:
-                    return True, None
-                return False, f"SHFileOperation код {res}"
-            except Exception as e2:
-                return False, f"COM: {e}, fallback: {e2}"
-        return False, err_str
+        msg = str(e).lower()
+        if "cross-device" in msg or "invalid cross-device link" in msg:
+            return False, "файл на другом диске — удали вручную"
+        return False, str(e)
     except Exception as e:
         return False, str(e)
+
+
+def _linux_trash(path):
+    if _HAS_TRASH:
+        try:
+            send2trash(path)
+            return True, None
+        except Exception as e:
+            return False, str(e)
+    try:
+        os.remove(path)
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+
+def safe_delete(path):
+    if IS_WIN:
+        return _win_trash(path)
+    if IS_MAC:
+        return _mac_trash(path)
+    return _linux_trash(path)
 
 
 def _is_hidden_or_system(path):
@@ -314,7 +331,7 @@ def scan_worker(root_path, bucket, cancel_event, split_threshold=SPLIT_THRESHOLD
     has_files = False
     split_dirs = []
 
-    splitext = os.path.splitext
+    splitext = os.splitext = os.path.splitext
     scandir = os.scandir
 
     def scan(path):
@@ -1966,13 +1983,6 @@ class ScannerApp(QMainWindow):
         self.toast.show_progress("🗑 Удаление...")
 
         def worker():
-            if IS_WIN:
-                try:
-                    import ctypes
-                    ctypes.windll.ole32.CoInitializeEx(None, 0x2)
-                except Exception:
-                    pass
-
             ok = 0
             fail = 0
             for path, _ in files:
