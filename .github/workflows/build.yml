@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,6 +12,7 @@ permissions:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -23,7 +25,8 @@ jobs:
             kind: exe
           - os: macos-13
             artifact: FolderScanner-macos.zip
-            kind: dmg
+            kind: macapp
+
     steps:
       - uses: actions/checkout@v4
 
@@ -43,31 +46,28 @@ jobs:
         run: pyinstaller --onefile --windowed --name="FolderScanner" scanner.py
 
       - name: Build (macOS .app)
-        if: matrix.kind == 'dmg'
+        if: matrix.kind == 'macapp'
         run: pyinstaller --windowed --name="FolderScanner" scanner.py
 
       - name: Build (Linux onefile)
         if: matrix.kind == 'appimage'
         run: pyinstaller --onefile --windowed --name="FolderScanner" scanner.py
 
-      # ---------- WINDOWS: exe ----------
       - name: Package (Windows)
         if: matrix.kind == 'exe'
         run: |
           mkdir out
           copy dist\FolderScanner.exe out\${{ matrix.artifact }}
 
-      # ---------- MACOS: .app в zip ----------
       - name: Package (macOS)
-        if: matrix.kind == 'dmg'
+        if: matrix.kind == 'macapp'
         run: |
-          mkdir out
+          mkdir -p out
           cd dist
           zip -r -y ../out/${{ matrix.artifact }} FolderScanner.app
           cd ..
           ls -la out/
 
-      # ---------- LINUX: AppImage ----------
       - name: Package (Linux AppImage)
         if: matrix.kind == 'appimage'
         run: |
@@ -87,9 +87,6 @@ jobs:
           Terminal=false
           EOF
 
-          # простая иконка-заглушка (можно заменить своей)
-          printf '\x89PNG\r\n\x1a\n' > AppDir/FolderScanner.png
-          # создаём пустую 1x1 png (AppImage требует иконку)
           python -c "
           from struct import pack
           import zlib
@@ -118,6 +115,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: always()
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
