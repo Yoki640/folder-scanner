@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, master ]
     tags:
-      - 'v*'
+      - '*'
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -85,27 +85,24 @@ jobs:
           wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
 
-          mkdir -p dist
           ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir dist/FolderScanner-linux.AppImage
 
       - name: Package (Windows)
         if: matrix.platform == 'windows'
         run: |
-          mkdir dist
-          copy dist\FolderScanner.exe dist\FolderScanner-windows.exe
+          copy dist\FolderScanner.exe FolderScanner-windows.exe
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: |
-            dist/*.exe
+            FolderScanner-windows.exe
             dist/*.AppImage
           if-no-files-found: ignore
 
-      # --- Релиз: Linux и Windows летят сразу ---
       - name: Upload release assets (Linux)
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.platform == 'linux'
+        if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'linux'
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
@@ -121,11 +118,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload release assets (Windows)
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.platform == 'windows'
+        if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'windows'
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
-          artifacts: "dist/*.exe"
+          artifacts: "FolderScanner-windows.exe"
           allowUpdates: true
           replacesArtifacts: true
           updateOnlyUnreleased: false
@@ -136,7 +133,6 @@ jobs:
           generateReleaseNotes: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # --- macOS отдельно, не блокирует win/linux ---
   build-macos:
     name: Build (macOS)
     runs-on: macos-latest
@@ -170,9 +166,8 @@ jobs:
           path: dist/FolderScanner-macos.zip
           if-no-files-found: ignore
 
-      # --- Релиз: macOS долетает когда соберётся ---
       - name: Upload release assets (macOS)
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/')
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
