@@ -1,36 +1,38 @@
-name: Build and Release
+name: Build & Release
 
 on:
   push:
+    branches: [ main, master ]
     tags:
-      - '*'
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  build-win-linux:
+    name: Build (${{ matrix.artifact_name }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-22.04
-            artifact: FolderScanner-linux.AppImage
-            kind: appimage
+            platform: linux
+            artifact_name: FolderScanner-Linux
           - os: windows-latest
-            artifact: FolderScanner-windows.exe
-            kind: exe
-          - os: macos-13
-            artifact: FolderScanner-macos.zip
-            kind: macapp
+            platform: windows
+            artifact_name: FolderScanner-Windows
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -41,38 +43,18 @@ jobs:
           pip install PyQt6 pyinstaller
           pip install xxhash || true
 
+      - name: Build (Linux)
+        if: matrix.platform == 'linux'
+        run: pyinstaller --onefile --windowed --hidden-import=xxhash --name="FolderScanner" scanner.py
+
       - name: Build (Windows)
-        if: matrix.kind == 'exe'
-        run: pyinstaller --onefile --windowed --name="FolderScanner" scanner.py
-
-      - name: Build (macOS .app)
-        if: matrix.kind == 'macapp'
-        run: pyinstaller --windowed --name="FolderScanner" scanner.py
-
-      - name: Build (Linux onefile)
-        if: matrix.kind == 'appimage'
-        run: pyinstaller --onefile --windowed --name="FolderScanner" scanner.py
-
-      - name: Package (Windows)
-        if: matrix.kind == 'exe'
-        run: |
-          mkdir out
-          copy dist\FolderScanner.exe out\${{ matrix.artifact }}
-
-      - name: Package (macOS)
-        if: matrix.kind == 'macapp'
-        run: |
-          mkdir -p out
-          cd dist
-          zip -r -y ../out/${{ matrix.artifact }} FolderScanner.app
-          cd ..
-          ls -la out/
+        if: matrix.platform == 'windows'
+        run: pyinstaller --onefile --windowed --hidden-import=xxhash --name="FolderScanner" scanner.py
 
       - name: Package (Linux AppImage)
-        if: matrix.kind == 'appimage'
+        if: matrix.platform == 'linux'
         run: |
           set -e
-
           mkdir -p AppDir/usr/bin
           cp dist/FolderScanner AppDir/usr/bin/FolderScanner
           chmod +x AppDir/usr/bin/FolderScanner
@@ -103,32 +85,104 @@ jobs:
           wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
 
-          mkdir -p out
-          ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir out/${{ matrix.artifact }}
+          mkdir -p dist
+          ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir dist/FolderScanner-linux.AppImage
 
-      - name: Upload artifact
+      - name: Package (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          mkdir dist
+          copy dist\FolderScanner.exe dist\FolderScanner-windows.exe
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: out/${{ matrix.artifact }}
+          name: ${{ matrix.artifact_name }}
+          path: |
+            dist/*.exe
+            dist/*.AppImage
+          if-no-files-found: ignore
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: List artifacts
-        run: ls -la artifacts/
-
-      - name: Upload to Release
+      # --- Релиз: Linux и Windows летят сразу ---
+      - name: Upload release assets (Linux)
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.platform == 'linux'
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "artifacts/*"
-          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          artifacts: "dist/*.AppImage"
           allowUpdates: true
+          replacesArtifacts: true
+          updateOnlyUnreleased: false
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          prerelease: false
+          makeLatest: true
+          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release assets (Windows)
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.platform == 'windows'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          artifacts: "dist/*.exe"
+          allowUpdates: true
+          replacesArtifacts: true
+          updateOnlyUnreleased: false
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          prerelease: false
+          makeLatest: true
+          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # --- macOS отдельно, не блокирует win/linux ---
+  build-macos:
+    name: Build (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyQt6 pyinstaller
+          pip install xxhash || true
+
+      - name: Build (macOS .app)
+        run: |
+          pyinstaller --windowed --hidden-import=xxhash --name="FolderScanner" scanner.py
+          cd dist
+          zip -r -y FolderScanner-macos.zip FolderScanner.app
+          cd ..
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolderScanner-macOS
+          path: dist/FolderScanner-macos.zip
+          if-no-files-found: ignore
+
+      # --- Релиз: macOS долетает когда соберётся ---
+      - name: Upload release assets (macOS)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          artifacts: "dist/FolderScanner-macos.zip"
+          allowUpdates: true
+          replacesArtifacts: true
+          updateOnlyUnreleased: false
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          prerelease: false
+          makeLatest: false
+          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
