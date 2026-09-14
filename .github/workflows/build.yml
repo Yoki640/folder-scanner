@@ -100,7 +100,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FolderScanner-Linux
-          path: src-tauri/target/release/bundle/**/*.{AppImage,deb}
+          path: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb
           if-no-files-found: error
 
       - name: Upload release assets (Linux)
@@ -108,7 +110,9 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
-          artifacts: src-tauri/target/release/bundle/**/*.{AppImage,deb}
+          artifacts: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb
           allowUpdates: true
           replacesArtifacts: true
           updateOnlyUnreleased: false
