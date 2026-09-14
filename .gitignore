@@ -1,32 +1,7 @@
-# Python
-__pycache__
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Сборка PyInstaller
-build/
-dist/
-*.spec
-
-# Виртуальное окружение
-.venv/
-venv/
-env/
-
-# Настройки редакторов и IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Отчёты программы
-report.txt
-
-# Мусор ОС
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Логи
+/node_modules
+/dist
+/src-tauri/target
+/src-tauri/gen/schemas
+/.tools
 *.log
+.DS_Store
